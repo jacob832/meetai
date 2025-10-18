@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-
+import AgentsListHeader from "@/modules/agents/ui/components/agents-list-header";
 import AgentsView, { AgentsViewError, AgentsViewLoading } from "@/modules/agents/ui/views/agents-view";
 
 import { getQueryClient, trpc } from "@/trpc/server";
@@ -21,7 +21,7 @@ const AgentsPage = async () => {
 
   return (
     <>
- 
+      <AgentsListHeader />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <Suspense fallback={<AgentsViewLoading />}>
           <ErrorBoundary FallbackComponent={AgentsViewError}>
