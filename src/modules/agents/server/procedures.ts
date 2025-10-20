@@ -4,22 +4,32 @@ import { db } from "@/db";
 import { agents } from "@/db/schema";
 import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { agentInsertSchema } from "../schemas";
+
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from "@/constants";
+import { agentInsertSchema } from "../schemas";
 
 export const agentsRouter = createTRPCRouter({
   getOne: protectedProcedure
   .input(z.object({
     id: z.string(),
   }))
-  .query(async ({ input }) => {
+  .query(async ({ ctx, input }) => {
     const [existingAgent] = await db
       .select({
         ...getTableColumns(agents),
         meetingCount: sql<number>`5`
       })
       .from(agents)
-      .where(eq(agents.id,input.id))
+      .where(and(
+        eq(agents.id,input.id),
+        eq(agents.userId, ctx.auth.user.id)
+      ))
+      if (!existingAgent) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Agent not found`,
+        });
+      }
     return existingAgent;
   }),
 
