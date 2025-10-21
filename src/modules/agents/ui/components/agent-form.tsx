@@ -1,121 +1,169 @@
-import GenerateAvatar from "@/components/generate-avatar";
+import { useTRPC } from "@/trpc/client";
+import { AgentGetOne } from "../../types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { agentInsertSchema } from "../../schemas";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useTRPC } from "@/trpc/client";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+import GenerateAvatar  from "@/components/generate-avatar";
+
+import {
+    Form,
+    FormItem,
+    FormLabel,
+    FormControl,
+    FormMessage,
+    FormField,
+} from "@/components/ui/form";
 import { toast } from "sonner";
-import type { z } from "zod";
-import { agentInsertSchema } from "../../schemas";
-import type { AgentGetOne } from "../../types";
 
 interface AgentFormProps {
-  onSuccess?: () => void;
-  onCancel?: () => void;
-  initialValues?: AgentGetOne;
+    onSuccess?: () => void;
+    onCancel?: () => void;
+    initialValues?: AgentGetOne;
 }
 
-export const AgentForm = ({ onSuccess, onCancel, initialValues }: AgentFormProps) => {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const firstInputRef = useRef<HTMLInputElement>(null);
+export const AgentForm = ({
+    onSuccess,
+    onCancel,
+    initialValues,
+}: AgentFormProps) => {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
 
-  const createAgent = useMutation(
-    trpc.agents.create.mutationOptions({
-      onSuccess: async () => {
-        await queryClient.invalidateQueries(trpc.agents.getMany.queryOptions({}));
+    const createAgent = useMutation(
+        trpc.agents.create.mutationOptions({
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(
+                    trpc.agents.getMany.queryOptions({}),
+                );
+                toast.success("Agent created successfully");
+                onSuccess?.();
+            },
+            onError: (error) => {
+                toast.error(
+                    `Failed to create agent: ${error.message}`,)
+            },
+        }),
+    );
 
-        if (initialValues?.id) {
-          await queryClient.invalidateQueries(trpc.agents.getOne.queryOptions({ id: initialValues.id }));
+    const updateAgent = useMutation(
+        trpc.agents.update.mutationOptions({
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(
+                    trpc.agents.getMany.queryOptions({}),
+                );
+
+                if (initialValues?.id) {
+                    await queryClient.invalidateQueries(
+                        trpc.agents.getOne.queryOptions({
+                            id: initialValues.id,
+                        }),
+                    )
+                }
+                toast.success("Agent updated successfully");
+                onSuccess?.();
+            },
+            onError: (error) => {
+                toast.error(
+                    `Failed to update agent: ${error.message}`,)
+            },
+        }),
+    );
+
+    const form = useForm<z.infer<typeof agentInsertSchema>>({
+        resolver: zodResolver(agentInsertSchema),
+        defaultValues: {
+            name: initialValues?.name || "",
+            instructions: initialValues?.instructions || "",
+        },
+    });
+
+    const isEdit = !!initialValues?.id;
+    const isPending = createAgent.isPending || updateAgent.isPending;
+
+    const onSubmit = (values: z.infer<typeof agentInsertSchema>) => {
+        if (isEdit) {
+            updateAgent.mutate({
+                ...values,
+                id: initialValues?.id,
+            });
         }
-
-        onSuccess?.();
-      },
-      onError: (error) => {
-        toast.error(`Error creating agent: ${error.message}`);
-        // TODO: Check if error code is 'CONFLICT' and show a specific message
-      },
-    })
-  );
-
-  const form = useForm<z.infer<typeof agentInsertSchema>>({
-    resolver: zodResolver(agentInsertSchema),
-    defaultValues: {
-      name: initialValues?.name ?? "",
-      instructions: initialValues?.instructions ?? "",
-    },
-  });
-
-  // Focus management for accessibility
-  useEffect(() => {
-    // Focus the first input when the form mounts (dialog opens)
-    const timer = setTimeout(() => {
-      firstInputRef.current?.focus();
-    }, 100); // Small delay to ensure dialog is fully opened
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const isEdit = !!initialValues?.id;
-  const isPending = createAgent.isPending;
-
-  const onSubmit = (values: z.infer<typeof agentInsertSchema>) => {
-    if (isEdit) {
-      console.log("TODO: updatedAgent");
-    } else {
-      createAgent.mutate(values);
+        else {
+            createAgent.mutate(values);
+        }
     }
-  };
 
-  return (
-    <Form {...form}>
-      <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-        <GenerateAvatar seed={form.watch("name")} variant="botttsNeutral" className="border size-16" />
-        <FormField
-          name="name"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input {...field} ref={firstInputRef} placeholder="Enter agent name" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          name="instructions"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Instructions</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  placeholder="You are a helpful assistant that can answer questions and help with assignments."
+    return (
+        <Form {...form} >
+            <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                <GenerateAvatar
+                    seed={form.watch("name")}
+                    className="size-16 border"
+                    variant="botttsNeutral"
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="flex justify-between gap-x-2">
-          {onCancel && (
-            <Button onClick={onCancel} disabled={isPending} variant="ghost" className="mr-2" type="button">
-              Cancel
-            </Button>
-          )}
-          <Button type="submit" disabled={isPending}>
-            {isEdit ? "Update Agent" : "Create Agent"}
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
-};
+                <FormField
+                    name="name"
+                    control={form.control}
+                    render={({ field }) => {
+                        return (
+                            <FormItem>
+                                <FormLabel>Name</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        placeholder="e.g. Math Tutor"
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>                            
+                        )
+                    }}
+                />
+                <FormField
+                    name="instructions"
+                    control={form.control}
+                    render={({ field }) => {
+                        return (
+                            <FormItem>
+                                <FormLabel>Instructions</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                        placeholder="You are a helpful Math Assistant that can answer any question and help with assignments"
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>                            
+                        )
+                    }}
+                />
+                <div className="flex justify-between gap-x-2 ">
+                    {onCancel && (
+                        <Button
+                        variant={"outline"}
+                        disabled={isPending}
+                        type="button"
+                        onClick={()=> {
+                            onCancel();
+                        }}
+                        >
+                            Cancel
+                        </Button>
+                    )}
+                    <Button
+                        type="submit"
+                        disabled={isPending}
+                        className="ml-2"
+                    >
+                        {isEdit ? "Update" : "Create"}
+                    </Button>
+                </div>
+            </form>
+        </Form>
+    )
+}
