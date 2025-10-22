@@ -1,33 +1,44 @@
+import { auth } from "@/lib/auth";
 import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { AgentIdView, AgentIdViewLoading, AgentIdViewError } from "@/modules/agents/ui/views/agent-id-view";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { MeetingIdView, MeetingIdViewError, MeetingIdViewLoading } from "@/modules/meetings/ui/views/meeting-id-view";
 
 interface Props {
-    params: Promise<{ agentId: string }>
+  params: Promise<{
+    meetingId: string;
+  }>;
 }
 
-const Page = async (
-    { params }: Props
-) => {
-    const {agentId} = await params;
+const Page = async ({ params }: Props) => {
+  const { meetingId } = await params;
 
-    const queryClient = getQueryClient();
-    void queryClient.prefetchQuery(
-        trpc.agents.getOne.queryOptions({
-            id: agentId
-        })
-    )
-    return (
-        <HydrationBoundary state={dehydrate(queryClient)}>
-            <Suspense fallback={<AgentIdViewLoading />}>
-                <ErrorBoundary fallback={<AgentIdViewError />}>
-                    <AgentIdView agentId={agentId} />
-                </ErrorBoundary>
-            </Suspense>
-        </HydrationBoundary>
-    )
+  const session = await auth.api.getSession({
+    headers: await headers()
+  })
+  if (!session) {
+    redirect('/sign-in');
+  }
+
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(
+    trpc.meetings.getOne.queryOptions({
+      id: meetingId,
+    })
+  );
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <Suspense fallback={<MeetingIdViewLoading />}>
+        <ErrorBoundary fallback={<MeetingIdViewError />}>
+          <MeetingIdView meetingId={meetingId} />
+        </ErrorBoundary>
+      </Suspense>
+    </HydrationBoundary>
+  )
 }
 
 export default Page
