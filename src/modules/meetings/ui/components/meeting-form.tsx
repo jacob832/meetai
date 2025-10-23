@@ -22,7 +22,7 @@ import {
 import { toast } from "sonner";
 import { MeetingGetOne } from "../../types";
 import { useState } from "react";
-import { CommnandSelect } from "@/components/command-select";
+import { CommandSelect } from "@/components/command-select";
 import NewAgentDialog from "@/modules/agents/ui/components/new-agent-dialog";
 import GenerateAvatar from "@/components/generate-avatar";
 
@@ -142,7 +142,7 @@ export const MeetingForm = ({
                 <FormItem>
                   <FormLabel>Agent</FormLabel>
                   <FormControl>
-                    <CommnandSelect
+                    <CommandSelect
                       options={(agents.data?.items ?? []).map((agent) => ({
                         id: agent.id,
                         value: agent.id,
