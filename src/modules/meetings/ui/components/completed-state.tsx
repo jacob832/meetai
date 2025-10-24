@@ -4,12 +4,10 @@ import Markdown from "react-markdown";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { BookOpenTextIcon, ClockFadingIcon, FileTextIcon, FileVideoIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
-import { GeneratedAvatar } from "@/components/generated-avtar";
+import GenerateAvatar from "@/components/generate-avatar";
 import { format } from "date-fns";
 import { formatDuration } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Transcript } from "./transcript";
-import { ChatProvider } from "./chat-provider";
 
 interface Props {
     data: MeetingGetOne;
@@ -78,7 +76,7 @@ export const CompletedState = ({ data }: Props) => {
                                     href={`/agents/${data.agentId}`}
                                     className="flex items-center gap-x-2 underline underline-offset-4 capitalize"
                                 >
-                                    <GeneratedAvatar
+                                    <GenerateAvatar
                                         variant="botttsNeutral"
                                         seed={data.agent.name}
                                         className="size-6"
@@ -143,19 +141,6 @@ export const CompletedState = ({ data }: Props) => {
 
                     </div>
                 </TabsContent>
-                <TabsContent
-                    value="transcript"
-                >
-                    <Transcript meetingId={data.id} />
-                </TabsContent>
-                <TabsContent
-                    value="chat"
-                    >
-                        <ChatProvider
-                            meetingId={data.id}
-                            meetingName={data.name}
-                        />
-                    </TabsContent>
             </Tabs>
         </div>
     )
